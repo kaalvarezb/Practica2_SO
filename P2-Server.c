@@ -1,111 +1,102 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
-#define TAM_HASH 1160 // Tamaño de la tabla hash
+#define MAX_CLIENTS 32
+#define BUFFER_SIZE 1024
 
-// Estructura para cada registro del archivo csv
-typedef struct {
-    int id_origen; // ID del id_origen
-    int id_destino; // ID del destino
-    int hour; // Hora del dia
-    float mean_travel_time; // Media del tiempo de viaje
-    float sd_travel_time; // Desviacion estandar del tiempo de viaje
-    float gm_travel_time; // Media geometrica del tiempo de viaje
-    float gm_sd_travel_time; // Desviacion estandar geometrica del tiempo de viaje
-} Registro;
-
-// Estructura para la lista enlazada de cada ID indexado
-typedef struct Nodo {
-    Registro reg;
-    struct Nodo* sig;
-} Nodo;
-
-Nodo* tabla[TAM_HASH]; // Puntero a la tabla hash
-
-// Funcion hash
-int hash(int id_origen) {
-    return id_origen % TAM_HASH;
+void log_operation(const char *operation, const char *ip) {
+    time_t now = time(NULL);
+    struct tm *tm = localtime(&now);
+    char timestamp[20];
+    strftime(timestamp, sizeof(timestamp), "%Y%m%dT%H%M%S", tm);
+    printf("[%s] Cliente %s %s\n", timestamp, ip, operation);
 }
 
-// Funcion para agregar un registro a la tabla hash
-void agregarRegistro(Registro reg) {
-    int indice = hash(reg.id_origen); // Calculo del indice de la tabla hash
-    Nodo* nuevoNodo = (Nodo*) malloc(sizeof(Nodo));
-    nuevoNodo->reg = reg;
-    nuevoNodo->sig = tabla[indice];
-    tabla[indice] = nuevoNodo;
-}
+void handle_client(int client_socket, const char *ip) {
+    char buffer[BUFFER_SIZE];
+    ssize_t bytes_received;
 
-// Funcion para buscar un registro en la tabla hash
-Registro buscarRegistro(int id_origen, int destino) {
-    int indice = hash(id_origen); // Calculo del indice de la tabla hash
-    Nodo* actual = tabla[indice];
-    while (actual != NULL) {
-        if (actual->reg.id_origen == id_origen && actual->reg.id_destino == destino) {
-            return actual->reg;
-        }
-        actual = actual->sig;
-    }
-    Registro regInvalido = {-1, -1, -1.0}; // registro inválido para indicar que no se encontró el registro buscado
-    return regInvalido;
-}
+    while ((bytes_received = recv(client_socket, buffer, BUFFER_SIZE, 0)) > 0) {
+        // Process received command from the client
+        buffer[bytes_received - 1] = '\0'; // Remove newline character
+        log_operation(buffer, ip);
 
-// Guardar la tabla hash en un archivo binario
-void guardarTabla(char* hashTable) {
-    FILE* archivo = fopen(hashTable, "wb");
-    for (int i = 0; i < TAM_HASH; i++) {
-        Nodo* actual = tabla[i];
-        while (actual != NULL) {
-            fwrite(&(actual->reg), sizeof(Registro), 1, archivo);
-            actual = actual->sig;
-        }
-    }
-    fclose(archivo);
-}
-
-// Abrir el archivobinario de la tabla hash
-void cargarTabla(char* hashTable) {
-    FILE* archivo = fopen(hashTable, "rb");
-    Registro reg;
-    while (fread(&reg, sizeof(Registro), 1, archivo) == 1) {
-        agregarRegistro(reg);
-    }
-    fclose(archivo);
-}
-
-int init() {
-    
-    // verificar si el archivo binario de la tabla hash existe
-    FILE* archivo = fopen("HashTable.bin", "rb");
-    if (archivo != NULL) {
-        fclose(archivo);
-        // Cargar tabla hash desde archivo binario
-        for (int i = 0; i < TAM_HASH; i++) {
-            tabla[i] = NULL;
-        }
-        cargarTabla("HashTable.bin");
-    }
-    else {
-        // Cargar registros desde archivo CSV y agregarlos a la tabla hash
-        FILE* archivoCSV = fopen("bogota-cadastral-2019-3-All-HourlyAggregate.csv", "r");
-        if (archivoCSV == NULL) {
-            printf("Error al abrir el archivo CSV\n");
-            return 1;
-        }
-        char linea[100];
-        while (fgets(linea, 100, archivoCSV) != NULL) {
-            Registro reg;
-            sscanf(linea, "%d,%d,%d,%f", &(reg.id_origen), &(reg.id_destino), &(reg.hour), &(reg.mean_travel_time));
-            agregarRegistro(reg);
-        }
-        fclose(archivoCSV);
-
-        // Guardar tabla hash en archivo binario
-        guardarTabla("HashTable.bin");
-
+        // Send confirmation message to the client
+        const char *confirmation = "Comando recibido correctamente.\n";
+        send(client_socket, confirmation, strlen(confirmation), 0);
     }
 
+    if (bytes_received == 0) {
+        printf("Cliente %s desconectado.\n", ip);
+    } else {
+        perror("Error al recibir datos del cliente.");
+    }
+
+    close(client_socket);
 }
 
+int main() {
+    int server_socket, client_socket;
+    struct sockaddr_in server_address, client_address;
+    socklen_t client_address_size;
+    pid_t child_pid;
 
+    // Create server socket
+    server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_socket == -1) {
+        perror("Error al crear el socket del servidor.");
+        exit(1);
+    }
+
+    // Set server address
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = INADDR_ANY;
+    server_address.sin_port = htons(12345); // Change to desired port number
+
+    // Bind server socket to the specified address and port
+    if (bind(server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) == -1) {
+        perror("Error al enlazar el socket del servidor.");
+        exit(1);
+    }
+
+    // Start listening for client connections
+    if (listen(server_socket, MAX_CLIENTS) == -1) {
+        perror("Error al escuchar en el socket del servidor.");
+        exit(1);
+    }
+
+    printf("Servidor en ejecución. Esperando conexiones de clientes...\n");
+
+    while (1) {
+        client_address_size = sizeof(client_address);
+
+        // Accept client connection
+        client_socket = accept(server_socket, (struct sockaddr *)&client_address, &client_address_size);
+        if (client_socket == -1) {
+            perror("Error al aceptar la conexión del cliente.");
+            exit(1);
+        }
+
+        // Fork a new process to handle the client
+        child_pid = fork();
+        if (child_pid == 0) {
+            // Child process
+            close(server_socket);
+            char client_ip[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &(client_address.sin_addr), client_ip, INET_ADDRSTRLEN);
+            handle_client(client_socket, client_ip);
+            exit(0);
+        } else if (child_pid > 0) {
+            // Parent process
+            close(client_socket);
+        } else {
+            perror("Error al crear el proceso hijo.");
+            exit(1);
+        }
+    }
+
+    return 0;
+}

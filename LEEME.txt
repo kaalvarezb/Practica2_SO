@@ -4,3 +4,30 @@ Integrantes:
 Karen Tatiana Alvarez Baez
 Fabian Humberto Chaparro Aguilera
 Javier Santiago Vargas Parra
+
+Instrucciones de uso:
+
+1. Compilar el servidor y el cliente ejecutando el comando 'make' en la terminal.
+
+2. Ejecutar el servidor con el siguiente comando:
+   ./p2-server
+
+   El servidor estará en ejecución y esperando conexiones de clientes.
+
+3. Ejecutar el cliente en otra terminal con el siguiente comando:
+   ./p2-client
+
+   A continuación, se mostrará un menú con varias opciones. Seleccione una opción
+   ingresando el número correspondiente y presionando Enter. El cliente enviará la
+   opción seleccionada al servidor y recibirá un mensaje de confirmación.
+
+   Para salir del cliente, seleccione la opción 5.
+
+4. El servidor registrará las operaciones realizadas por los clientes en un archivo log
+   llamado "log.txt". Cada operación se registra con el formato:
+   [Fecha YYYYMMDDTHHMMSS] Cliente [IP] [búsqueda - origen - destino]
+
+5. Si se desea limpiar los archivos generados, ejecute el comando 'make clean' en la
+   terminal.
+
+¡Disfruta usando el programa cliente-servidor de gestión de tiempos de viaje!
