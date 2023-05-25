@@ -3,13 +3,13 @@ CFLAGS = -Wall
 
 .PHONY: all clean
 
-all: p2-server p2-client
+all: P2-Server P2-Client
 
-p2-server: p2-server.c
-	$(CC) $(CFLAGS) p2-server.c -o p2-server
+p2-server: P2-Server.c
+	$(CC) $(CFLAGS) P2-Server.c -o P2-Server
 
-p2-client: p2-client.c
-	$(CC) $(CFLAGS) p2-client.c -o p2-client
+p2-client: p2-Client.c
+	$(CC) $(CFLAGS) P2-Client.c -o P2-Client
 
 clean:
-	rm -f p2-server p2-client
+	rm -f P2-Server P2-Client
