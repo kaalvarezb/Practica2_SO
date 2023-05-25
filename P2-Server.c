@@ -6,6 +6,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include "Hash.c"
+#include "log.h"
 
 #define MAX_CLIENTS 32
 #define BUFFER_SIZE 1024
@@ -15,6 +16,9 @@ char* log_operation(char *operation, const char *ip) {
     struct tm *tm = localtime(&now);
     char timestamp[20];
     strftime(timestamp, sizeof(timestamp), "%Y%m%dT%H%M%S", tm);
+
+    // Guardar log
+    escribirLog(ip);
     printf("[%s] Cliente %s %s\n", timestamp, ip, operation);
 
     // Variables para la busqueda del tiempo promedio de viaje
@@ -50,8 +54,8 @@ char* log_operation(char *operation, const char *ip) {
     gettimeofday(&start, NULL);//se almacena la hora de inicio
     Registro reg = buscarRegistro(atoi(origen_id), atoi(destino_id));
     // Convertir el entero a una cadena de caracteres
-    char t[10];
-    sprintf(t, "%d", reg.mean_travel_time);
+    char t[50];
+    sprintf(t, "%f", reg.mean_travel_time);
     char* cadena1 = "Registro encontrado: origen = ";
     char* cadena = malloc(strlen("Registro encontrado: origen = , destino = , hora = , tiempo = ") + strlen(origen_id)+ strlen(destino_id)+ strlen(hora)+ strlen(t) + 1); // Asignar memoria para la cadena resultante;
     sprintf(cadena, "%s%s%s%s%s%s%s%s%s", cadena1, origen_id, ", destino = ", destino_id, ", hora = ", hora, ", tiempo = ", t, "\n");
