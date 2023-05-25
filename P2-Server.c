@@ -3,16 +3,73 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <time.h>
+#include <sys/time.h>
+#include "Hash.c"
 
 #define MAX_CLIENTS 32
 #define BUFFER_SIZE 1024
 
-void log_operation(const char *operation, const char *ip) {
+void log_operation(char *operation, const char *ip) {
     time_t now = time(NULL);
     struct tm *tm = localtime(&now);
     char timestamp[20];
     strftime(timestamp, sizeof(timestamp), "%Y%m%dT%H%M%S", tm);
     printf("[%s] Cliente %s %s\n", timestamp, ip, operation);
+
+    // Variables para la busqueda del tiempo promedio de viaje
+    char origen_id[10];
+    char destino_id[10];
+    char hora[10];
+    struct timeval start, end;
+	long seconds, microseconds;
+
+    // ALmacenamiento de los valores enviados por el cliente
+    char delimiter[] = ",";
+
+    // Obtener el primer valor
+    char* value = strtok(operation, delimiter);
+
+    if (value != NULL) {
+        strcpy(origen_id, value);
+        
+        // Obtener el segundo valor
+        value = strtok(NULL, delimiter);
+        if (value != NULL) {
+            strcpy(destino_id, value);
+
+            // Obtener el tercer valor
+            value = strtok(NULL, delimiter);
+            if (value != NULL) {
+                strcpy(hora, value);
+            }
+        }
+    }
+
+    printf("Origen: %s\n", origen_id);
+    printf("Destino: %s\n", destino_id);
+    printf("Hora: %s\n", hora);
+
+    // Busqueda de un registro
+    gettimeofday(&start, NULL);//se almacena la hora de inicio
+    Registro reg = buscarRegistro(atoi(origen_id), atoi(destino_id));
+    if (reg.id_origen == -1 && reg.id_destino == -1 && reg.mean_travel_time == 0.0) {
+        printf("NA\n");
+
+    } else {
+        if (reg.hour == atoi(hora)) {
+            printf("Registro encontrado: origen = %d, destino = %d, hora = %d, tiempo = %.2f\n", reg.id_origen, reg.id_destino, reg.hour, reg.mean_travel_time);
+        }
+        else {
+            printf("La hora no coincide con los registros\n");
+        }
+    }
+    gettimeofday(&end, NULL);// se almacena la hora de finalizacion
+    seconds = end.tv_sec - start.tv_sec;
+    microseconds = end.tv_usec - start.tv_usec;
+    printf("Tiempo de la busqueda: %d.%0.6d segundos \n", seconds, microseconds); // se imprime el tiempo que toma la busqueda
+
+
 }
 
 void handle_client(int client_socket, const char *ip) {
@@ -39,10 +96,14 @@ void handle_client(int client_socket, const char *ip) {
 }
 
 int main() {
+
     int server_socket, client_socket;
     struct sockaddr_in server_address, client_address;
     socklen_t client_address_size;
     pid_t child_pid;
+
+    // Cargar tabla hash
+    init();
 
     // Create server socket
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -58,6 +119,7 @@ int main() {
 
     // Bind server socket to the specified address and port
     if (bind(server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) == -1) {
+        close(client_socket);
         perror("Error al enlazar el socket del servidor.");
         exit(1);
     }

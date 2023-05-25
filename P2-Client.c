@@ -31,6 +31,11 @@ void send_command(int server_socket, const char *command) {
 int main() {
     int server_socket;
     struct sockaddr_in server_address;
+    
+    // Datos del cliente
+    char origen_id[10];
+    char destino_id[10];
+    char hora[10];
 
     // Create server socket
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -41,7 +46,7 @@ int main() {
 
     // Set server address
     server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = inet_addr("25.7.197.140"); // Change to server IP address
+    server_address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Change to server IP address 25.7.197.140
     server_address.sin_port = htons(12345); // Change to server port number
 
     // Connect to the server
@@ -62,22 +67,18 @@ int main() {
         switch (option) {
             case 1:
                 printf("Ingresar origen: ");
-                fgets(command, BUFFER_SIZE, stdin);
-                send_command(server_socket, command);
+                scanf("%s", origen_id);
                 break;
             case 2:
                 printf("Ingresar destino: ");
-                fgets(command, BUFFER_SIZE, stdin);
-                send_command(server_socket, command);
+                scanf("%s", destino_id);
                 break;
             case 3:
                 printf("Ingresar hora: ");
-                fgets(command, BUFFER_SIZE, stdin);
-                send_command(server_socket, command);
+                scanf("%s", hora);
                 break;
             case 4:
-                printf("Buscar tiempo de viaje medio\n");
-                send_command(server_socket, "Buscar tiempo de viaje medio\n");
+                send_command(server_socket, strcat(strcat(strcat(strcat(strcat(origen_id,","), destino_id),","), hora), ","));
                 break;
             case 5:
                 printf("Saliendo...\n");
