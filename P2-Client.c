@@ -41,7 +41,7 @@ int main() {
 
     // Set server address
     server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Change to server IP address
+    server_address.sin_addr.s_addr = inet_addr("25.7.197.140"); // Change to server IP address
     server_address.sin_port = htons(12345); // Change to server port number
 
     // Connect to the server
