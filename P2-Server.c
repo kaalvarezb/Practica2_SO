@@ -10,7 +10,7 @@
 #define MAX_CLIENTS 32
 #define BUFFER_SIZE 1024
 
-void log_operation(char *operation, const char *ip) {
+char* log_operation(char *operation, const char *ip) {
     time_t now = time(NULL);
     struct tm *tm = localtime(&now);
     char timestamp[20];
@@ -46,30 +46,44 @@ void log_operation(char *operation, const char *ip) {
         }
     }
 
-    printf("Origen: %s\n", origen_id);
-    printf("Destino: %s\n", destino_id);
-    printf("Hora: %s\n", hora);
-
     // Busqueda de un registro
     gettimeofday(&start, NULL);//se almacena la hora de inicio
     Registro reg = buscarRegistro(atoi(origen_id), atoi(destino_id));
+    // Convertir el entero a una cadena de caracteres
+    char t[10];
+    sprintf(t, "%d", reg.mean_travel_time);
+    char* cadena1 = "Registro encontrado: origen = ";
+    char* cadena = malloc(strlen("Registro encontrado: origen = , destino = , hora = , tiempo = ") + strlen(origen_id)+ strlen(destino_id)+ strlen(hora)+ strlen(t) + 1); // Asignar memoria para la cadena resultante;
+    sprintf(cadena, "%s%s%s%s%s%s%s%s%s", cadena1, origen_id, ", destino = ", destino_id, ", hora = ", hora, ", tiempo = ", t, "\n");
+
+    // char* answer = malloc(strlen("Registro encontrado: origen = , destino = , hora = , tiempo = ") + strlen(origen_id)+ strlen(destino_id)+ strlen(hora)+ strlen(t) + 1); // Asignar memoria para la cadena resultante
+    // strcat(strcat(cadena1, origen_id), strcat(strcat(", destino = ", destino_id), strcat(strcat(", hora = ", hora), strcat(strcat(", tiempo = ", t), "\n"))));
+
+    //Concatenar la cadena
     if (reg.id_origen == -1 && reg.id_destino == -1 && reg.mean_travel_time == 0.0) {
         printf("NA\n");
 
     } else {
         if (reg.hour == atoi(hora)) {
-            printf("Registro encontrado: origen = %d, destino = %d, hora = %d, tiempo = %.2f\n", reg.id_origen, reg.id_destino, reg.hour, reg.mean_travel_time);
+            gettimeofday(&end, NULL);// se almacena la hora de finalizacion
+            seconds = end.tv_sec - start.tv_sec;
+            microseconds = end.tv_usec - start.tv_usec;
+            printf("Tiempo de la busqueda: %d.%0.6d segundos \n", seconds, microseconds); // se imprime el tiempo que toma la busqueda
+            
+            // printf("Registro encontrado: origen = %d, destino = %d, hora = %d, tiempo = %.2f\n", reg.id_origen, reg.id_destino, reg.hour, reg.mean_travel_time);
+            // printf(strcat(strcat(answer, or), strcat(strcat(", destino = ", des), strcat(strcat(", hora = ", h), strcat(strcat(", tiempo = ", t), "\n")))));
+            // return (strcat(strcat(answer, origen_id), strcat(strcat(", destino = ", destino_id), strcat(strcat(", hora = ", hora), strcat(strcat(", tiempo = ", "temporal"), "\n")))));;
+            return cadena;
         }
         else {
-            printf("La hora no coincide con los registros\n");
+            gettimeofday(&end, NULL);// se almacena la hora de finalizacion
+            seconds = end.tv_sec - start.tv_sec;
+            microseconds = end.tv_usec - start.tv_usec;
+            printf("Tiempo de la busqueda: %d.%0.6d segundos \n", seconds, microseconds); // se imprime el tiempo que toma la busqueda
+            return "No se encontro el registro.\n";
         }
     }
-    gettimeofday(&end, NULL);// se almacena la hora de finalizacion
-    seconds = end.tv_sec - start.tv_sec;
-    microseconds = end.tv_usec - start.tv_usec;
-    printf("Tiempo de la busqueda: %d.%0.6d segundos \n", seconds, microseconds); // se imprime el tiempo que toma la busqueda
-
-
+    
 }
 
 void handle_client(int client_socket, const char *ip) {
@@ -79,11 +93,11 @@ void handle_client(int client_socket, const char *ip) {
     while ((bytes_received = recv(client_socket, buffer, BUFFER_SIZE, 0)) > 0) {
         // Process received command from the client
         buffer[bytes_received - 1] = '\0'; // Remove newline character
-        log_operation(buffer, ip);
+        char* respuesta = log_operation(buffer, ip);
 
         // Send confirmation message to the client
-        const char *confirmation = "Comando recibido correctamente.\n";
-        send(client_socket, confirmation, strlen(confirmation), 0);
+        const char* confirmation = "Peticion realizada con exito.\n";
+        send(client_socket, respuesta, strlen(respuesta), 0);
     }
 
     if (bytes_received == 0) {
@@ -119,6 +133,7 @@ int main() {
 
     // Bind server socket to the specified address and port
     if (bind(server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) == -1) {
+        close(server_socket);
         close(client_socket);
         perror("Error al enlazar el socket del servidor.");
         exit(1);
